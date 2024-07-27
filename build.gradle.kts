@@ -19,9 +19,9 @@ repositories {
 }
 
 dependencies {
-//    implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
-//    runtimeOnly("com.mysql:mysql-connector-j")
-//    runtimeOnly("io.asyncer:r2dbc-mysql")
+    implementation("org.springframework.boot:spring-boot-starter-data-r2dbc")
+    implementation("com.mysql:mysql-connector-j")
+    implementation("io.asyncer:r2dbc-mysql")
 
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
