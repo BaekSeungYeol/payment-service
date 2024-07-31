@@ -1,12 +1,12 @@
 package me.whitewin.paymentservice.payment.test
 
-import me.whitewin.paymentservice.payment.domain.PaymentEvent
-import me.whitewin.paymentservice.payment.domain.PaymentOrder
-import me.whitewin.paymentservice.payment.domain.PaymentStatus
+import me.whitewin.paymentservice.payment.domain.*
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.transaction.reactive.TransactionalOperator
 import reactor.core.publisher.Mono
 import java.math.BigDecimal
+import java.time.LocalDateTime
+import java.time.ZonedDateTime
 
 
 class R2DBCPaymentDatabaseHelper(
@@ -27,6 +27,10 @@ class R2DBCPaymentDatabaseHelper(
                         orderId = results.first()["order_id"] as String,
                         orderName = results.first()["order_name"] as String,
                         buyerId = results.first()["buyer_id"] as Long,
+                        paymentKey = results.first()["payment_key"] as String?,
+                        paymentType = if(results.first()["type"] != null) PaymentType.get(results.first()["type"] as String) else null,
+                        paymentMethod = if(results.first()["method"] != null) PaymentMethod.valueOf(results.first()["method"] as String) else null,
+                        approvedAt = if(results.first()["approved_at"] != null) (results.first()["approved_at"] as LocalDateTime) else null,
                         isPaymentDone = ((results.first()["is_payment_done"] as Byte).toInt() == 1),
                         paymentOrders = results.map { result ->
                             PaymentOrder(
@@ -48,7 +52,8 @@ class R2DBCPaymentDatabaseHelper(
     }
 
     override fun clean(): Mono<Void> {
-        return deletePaymentOrders()
+        return deletePaymentOrderHistories()
+            .flatMap {deletePaymentOrders() }
             .flatMap { deletePaymentEvent() }
             .`as`(transactionalOperator::transactional)
             .then()
@@ -64,6 +69,11 @@ class R2DBCPaymentDatabaseHelper(
             .rowsUpdated()
     }
 
+    private fun deletePaymentOrderHistories(): Mono<Long> = databaseClient.sql(DELETE_PAYMENT_ORDER_HISTORY_QUERY)
+        .fetch()
+        .rowsUpdated()
+
+
     companion object {
         val SELECT_PAYMENT_QUERY = """
             SELECT * from payment_events pe
@@ -77,6 +87,10 @@ class R2DBCPaymentDatabaseHelper(
 
         val DELETE_PAYMENT_ORDER_QUERY = """
             DELETE FROM payment_orders
+        """.trimIndent()
+
+        val DELETE_PAYMENT_ORDER_HISTORY_QUERY = """
+            DELETE FROM payment_order_histories
         """.trimIndent()
 
     }

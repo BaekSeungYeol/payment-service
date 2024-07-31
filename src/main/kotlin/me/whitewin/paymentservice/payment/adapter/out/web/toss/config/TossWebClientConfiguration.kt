@@ -1,4 +1,4 @@
-package me.whitewin.paymentservice.payment.adapter.out.config
+package me.whitewin.paymentservice.payment.adapter.out.web.toss.config
 
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.context.annotation.Bean
