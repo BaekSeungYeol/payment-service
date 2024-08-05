@@ -1,7 +1,7 @@
 package me.whitewin.paymentservice.payment.application.port.out
 
-import me.whitewin.paymentservice.payment.domain.PaymentExecutionFailure
 import me.whitewin.paymentservice.payment.domain.PaymentExtraDetails
+import me.whitewin.paymentservice.payment.domain.PaymentFailure
 import me.whitewin.paymentservice.payment.domain.PaymentStatus
 
 data class PaymentStatusUpdateCommand (
@@ -9,7 +9,7 @@ data class PaymentStatusUpdateCommand (
     val orderId: String,
     val status: PaymentStatus,
     val extraDetails: PaymentExtraDetails? = null,
-    val failure: PaymentExecutionFailure? = null
+    val failure: PaymentFailure? = null
 ) {
 
     init {

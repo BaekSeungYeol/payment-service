@@ -103,7 +103,7 @@ data class EasyPay(
     val provider: String
 )
 
-data class Failure(
+data class TossFailureResponse(
     val code: String,
     val message: String
 )
