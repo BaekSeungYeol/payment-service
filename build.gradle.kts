@@ -25,6 +25,8 @@ dependencies {
     implementation("com.mysql:mysql-connector-j")
     implementation("io.asyncer:r2dbc-mysql")
 
+    implementation("io.github.microutils:kotlin-logging-jvm:3.0.4")
+
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
     implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")

@@ -1,5 +1,6 @@
 package me.whitewin.paymentservice.payment.application.port.out
 
+import me.whitewin.paymentservice.payment.domain.PaymentExecutionResult
 import me.whitewin.paymentservice.payment.domain.PaymentExtraDetails
 import me.whitewin.paymentservice.payment.domain.PaymentFailure
 import me.whitewin.paymentservice.payment.domain.PaymentStatus
@@ -11,6 +12,14 @@ data class PaymentStatusUpdateCommand (
     val extraDetails: PaymentExtraDetails? = null,
     val failure: PaymentFailure? = null
 ) {
+
+    constructor(paymentExecutionResult: PaymentExecutionResult): this(
+        paymentKey = paymentExecutionResult.paymentKey,
+        orderId =paymentExecutionResult.orderId,
+        status = paymentExecutionResult.paymentStatus(),
+        extraDetails = paymentExecutionResult.extraDetails,
+        failure = paymentExecutionResult.failure
+    )
 
     init {
         require(status == PaymentStatus.SUCCESS || status == PaymentStatus.FAILURE || status == PaymentStatus.UNKNOWN) {
