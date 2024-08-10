@@ -6,6 +6,7 @@ import me.whitewin.paymentservice.payment.application.port.`in`.PaymentRecoveryU
 import me.whitewin.paymentservice.payment.application.port.out.*
 import mu.KLogger
 import mu.KLogging
+import org.springframework.context.annotation.Profile
 import org.springframework.scheduling.annotation.Scheduled
 import reactor.core.scheduler.Schedulers
 import java.util.concurrent.TimeUnit
@@ -16,11 +17,12 @@ class PaymentRecoveryService(
     private val paymentValidationPort: PaymentValidationPort,
     private val paymentExecutorPort: PaymentExecutorPort,
     private val paymentStatusUpdatePort: PaymentStatusUpdatePort,
+    private val paymentErrorHandler: PaymentErrorHandler
 ) :  PaymentRecoveryUseCase{
 
     private val scheduler = Schedulers.newSingle("recovery")
 
-    @Scheduled(fixedDelay = 180, timeUnit = TimeUnit.SECONDS)
+    @Scheduled(fixedDelay = 180, initialDelay = 180, timeUnit = TimeUnit.SECONDS)
     override fun recovery() {
         loadPendingPaymentPort.getPendingPayments()
             .map {
@@ -33,17 +35,14 @@ class PaymentRecoveryService(
             }
             .parallel(2)
             .runOn(Schedulers.parallel())
-            .flatMap { paymentValidationPort.isValid(it.orderId, it.amount).thenReturn(it) }
-            .flatMap { paymentExecutorPort.execute(it) }
-            .flatMap { paymentStatusUpdatePort.updatePaymentStatus(PaymentStatusUpdateCommand(it)).thenReturn(it)}
-            .sequential()
-            .doOnEach {
-                when(it.hasError() && it.isOnComplete.not()) {
-                    true -> logger.info { "recovery failure, orderId: ${it.get()?.orderId}" }
-                    false -> logger.info { "recovery success, orderId: ${it.get()?.orderId}" }
+            .flatMap { command ->
+                paymentValidationPort.isValid(command.orderId, command.amount).thenReturn(command)
+                .flatMap { paymentExecutorPort.execute(it) }
+                .flatMap { paymentStatusUpdatePort.updatePaymentStatus(PaymentStatusUpdateCommand(it))}
+                .onErrorResume { paymentErrorHandler.handlePaymentConfirmationError(it, command).thenReturn(true) }
 
-                }
             }
+            .sequential()
             .subscribeOn(scheduler)
             .subscribe()
     }

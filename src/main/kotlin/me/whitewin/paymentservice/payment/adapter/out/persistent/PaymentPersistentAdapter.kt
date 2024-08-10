@@ -34,6 +34,6 @@ class PaymentPersistentAdapter(
     }
 
     override fun getPendingPayments(): Flux<PendingPaymentEvent> {
-
+        return paymentRepository.getPendingPayments()
     }
 }
