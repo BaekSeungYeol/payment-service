@@ -1,6 +1,5 @@
 package me.whitewin.paymentservice.payment.adapter.`in`.web.request
 
-import java.time.LocalDate
 import java.time.LocalDateTime
 
 data class CheckoutRequest(

@@ -25,6 +25,10 @@ dependencies {
     implementation("com.mysql:mysql-connector-j")
     implementation("io.asyncer:r2dbc-mysql")
 
+    implementation("org.springframework.cloud:spring-cloud-stream")
+    implementation("org.springframework.cloud:spring-cloud-stream-binder-kafka-reactive")
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.4")
 
     implementation("org.springframework.boot:spring-boot-starter-thymeleaf")
@@ -38,6 +42,14 @@ dependencies {
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("io.mockk:mockk:1.13.2")
+}
+
+extra["springCloudVersion"] = "2023.0.0"
+
+dependencyManagement {
+    imports {
+        mavenBom("org.springframework.cloud:spring-cloud-dependencies:${property("springCloudVersion")}")
+    }
 }
 
 kotlin {

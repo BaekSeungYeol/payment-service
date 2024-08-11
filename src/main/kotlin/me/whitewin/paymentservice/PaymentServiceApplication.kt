@@ -6,8 +6,9 @@ import org.springframework.scheduling.annotation.EnableScheduling
 
 @SpringBootApplication
 @EnableScheduling
-class PaymentServiceApplication
+class PaymentServiceApplication {
 
+}
 fun main(args: Array<String>) {
     runApplication<PaymentServiceApplication>(*args)
 }
