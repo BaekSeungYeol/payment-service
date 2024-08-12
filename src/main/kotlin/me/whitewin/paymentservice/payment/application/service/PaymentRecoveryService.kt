@@ -12,6 +12,7 @@ import reactor.core.scheduler.Schedulers
 import java.util.concurrent.TimeUnit
 
 @UseCase
+@Profile("dev")
 class PaymentRecoveryService(
     private val loadPendingPaymentPort: LoadPendingPaymentPort,
     private val paymentValidationPort: PaymentValidationPort,

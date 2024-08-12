@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct
 import me.whitewin.paymentservice.common.Logger
 import me.whitewin.paymentservice.common.StreamAdapter
 import me.whitewin.paymentservice.payment.adapter.out.persistent.repository.PaymentOutboxRepository
+import me.whitewin.paymentservice.payment.application.port.out.DispatchEventMessagePort
 import me.whitewin.paymentservice.payment.domain.PaymentEventMessage
 import me.whitewin.paymentservice.payment.domain.PaymentEventMessageType
 import org.springframework.context.annotation.Bean
@@ -26,7 +27,7 @@ import java.util.function.Supplier
 @StreamAdapter
 class PaymentEventMessageSender(
     private val paymentOutboxRepository: PaymentOutboxRepository
-) {
+): DispatchEventMessagePort {
 
     /**
      * data stream 을 동적으로 생성하고 발출하는 메커니즘
@@ -78,7 +79,7 @@ class PaymentEventMessageSender(
         dispatch(paymentEventMessage)
     }
 
-    fun dispatch(paymentEventMessage: PaymentEventMessage) {
+    override fun dispatch(paymentEventMessage: PaymentEventMessage) {
         sender.emitNext(createEventMessage(paymentEventMessage), Sinks.EmitFailureHandler.FAIL_FAST)
     }
 
