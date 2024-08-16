@@ -23,6 +23,8 @@ spring:
                 lookup: use_all_dns_ips
           required-acks: all
           auto-create-topics: false
+
+
         bindings:
           send-out-0:
             producer:
