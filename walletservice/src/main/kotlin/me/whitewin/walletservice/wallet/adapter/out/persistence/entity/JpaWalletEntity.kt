@@ -8,7 +8,7 @@ import java.time.Instant
 
 @Entity
 @Table(name = "wallets")
-class JpaWalletEntity(
+data class JpaWalletEntity(
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     val id: Long? = null,
@@ -21,4 +21,8 @@ class JpaWalletEntity(
 
     @Version
     val version: Int,
-)
+) {
+    fun addBalance(amount: BigDecimal) : JpaWalletEntity{
+        return copy(balance = balance + amount)
+    }
+}
