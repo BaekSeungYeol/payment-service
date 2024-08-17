@@ -24,6 +24,6 @@ class WalletPersistenceAdapter(
     }
 
     override fun save(wallets: List<Wallet>) {
-
+        walletRepository.save(wallets)
     }
 }
