@@ -1,17 +1,11 @@
 package me.whitewin.walletservice.wallet.adapter.out.persistence.repository
 
-import io.mockk.every
-import io.mockk.mockk
 import me.whitewin.walletservice.wallet.adapter.out.persistence.entity.JpaWalletEntity
 import me.whitewin.walletservice.wallet.adapter.out.persistence.entity.JpaWalletMapper
-import me.whitewin.walletservice.wallet.application.port.out.LoadPaymentOrderPort
-import me.whitewin.walletservice.wallet.application.service.SettlementService
 import me.whitewin.walletservice.wallet.domain.*
 import org.assertj.core.api.Assertions.assertThat
-import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.RepeatedTest
-import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import java.math.BigDecimal
