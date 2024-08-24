@@ -1,15 +1,13 @@
 package me.whitewin.paymentservice.payment.adapter.out.persistent.repository
 
-import me.whitewin.paymentservice.payment.domain.PaymentEvent
-import me.whitewin.paymentservice.payment.domain.PaymentStatus
-import me.whitewin.paymentservice.payment.domain.PendingPaymentEvent
-import me.whitewin.paymentservice.payment.domain.PendingPaymentOrder
+import me.whitewin.paymentservice.payment.domain.*
 import me.whitewin.paymentservice.payment.util.MYSQLDateTimeFormatter
 import org.springframework.r2dbc.core.DatabaseClient
 import org.springframework.stereotype.Repository
 import org.springframework.transaction.reactive.TransactionalOperator
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
+import reactor.kotlin.core.publisher.toMono
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.time.LocalDateTime
@@ -18,19 +16,19 @@ import java.time.LocalDateTime
 class R2DBCPaymentRepository(
     private val databaseClient: DatabaseClient,
     private val transactionalOperator: TransactionalOperator
-): PaymentRepository {
+) : PaymentRepository {
 
     override fun save(paymentEvent: PaymentEvent): Mono<Void> {
         return insertPaymentEvent(paymentEvent)
             .flatMap { selectPaymentEventId() }
-            .flatMap { paymentEventId -> insertPaymentOrders(paymentEvent, paymentEventId)  }
+            .flatMap { paymentEventId -> insertPaymentOrders(paymentEvent, paymentEventId) }
             .`as`(transactionalOperator::transactional)
             .then()
     }
 
 
     private fun insertPaymentOrders(paymentEvent: PaymentEvent, paymentEventId: Long): Mono<Long> {
-        val valueClauses = paymentEvent.paymentOrders.joinToString(", ") {paymentOrder ->
+        val valueClauses = paymentEvent.paymentOrders.joinToString(", ") { paymentOrder ->
             "($paymentEventId, ${paymentOrder.sellerId}, '${paymentOrder.orderId}', ${paymentOrder.productId}, ${paymentOrder.amount}, '${paymentOrder.paymentStatus}')"
         }
 
@@ -79,6 +77,82 @@ class R2DBCPaymentRepository(
             }
     }
 
+    override fun getPayment(orderId: String): Mono<PaymentEvent> {
+        return databaseClient.sql(SELECT_PAYMENT_EVENT_QUERY)
+            .bind("orderId", orderId)
+            .fetch()
+            .all()
+            .groupBy { it["payment_event_id"] as Long }
+            .flatMap { groupedFlux ->
+                groupedFlux.collectList().map { results ->
+                    val paymentOrders = results.map { result ->
+                        PaymentOrder(
+                            id = result["payment_order_id'"] as Long,
+                            paymentEventId = groupedFlux.key(),
+                            sellerId = result["seller_id"] as Long,
+                            productId = result["product_id"] as Long,
+                            orderId = result["order_id"] as String,
+                            amount = (result["amount"] as BigDecimal).toLong(),
+                            paymentStatus = PaymentStatus.get(result["payment_order_status"] as String),
+                            isLedgerUpdated = ((result["ledger_updated"]) as Byte).toInt() == 1,
+                            isWalletUpdated = ((result["wallet_updated"]) as Byte).toInt() == 1,
+                        )
+                    }
+
+                    PaymentEvent(
+                        id = groupedFlux.key(),
+                        orderId = results.first()["order_id"] as String,
+                        buyerId = results.first()["buyer_id"] as Long,
+                        orderName = results.first()["order_name"] as String,
+                        paymentOrders = paymentOrders,
+                        isPaymentDone = ((results.first()["is_payment_done"] as Byte).toInt()) == 1
+
+                    )
+                }
+            }
+            .toMono()
+    }
+
+    override fun complete(paymentEvent: PaymentEvent): Mono<Void> {
+        return when {
+            paymentEvent.isPaymentDone() -> handlePaymentCompletion(paymentEvent)
+            paymentEvent.isLedgerUpdateDone() -> handleLedgerUpdate(paymentEvent)
+            paymentEvent.isWalletUpdateDone() -> handleWalletUpdate(paymentEvent)
+            else -> error("Incorrect state for PaymentEvent id: ${paymentEvent.id}")
+        }
+    }
+
+    private fun handleWalletUpdate(paymentEvent: PaymentEvent): Mono<Void> {
+        return databaseClient.sql(UPDATE_PAYMENT_ORDER_WALLET_DONE_QUERY)
+            .bind("orderId", paymentEvent.orderId)
+            .fetch()
+            .rowsUpdated()
+            .then()
+    }
+
+    private fun handleLedgerUpdate(paymentEvent: PaymentEvent): Mono<Void> {
+        return databaseClient.sql(UPDATE_PAYMENT_ORDER_LEDGER_DONE_QUERY)
+            .bind("orderId", paymentEvent.orderId)
+            .fetch()
+            .rowsUpdated()
+            .then()
+    }
+
+    private fun handlePaymentCompletion(paymentEvent: PaymentEvent): Mono<Void> {
+        return Mono.`when`(
+            handleLedgerUpdate(paymentEvent),
+            handleWalletUpdate(paymentEvent)
+        ).then(Mono.defer { completePaymentEvent(paymentEvent)})
+    }
+
+    private fun completePaymentEvent(paymentEvent: PaymentEvent): Mono<Void> {
+        return databaseClient.sql(UPDATE_PAYMENT_EVENT_COMPLETE_QUERY)
+            .bind("paymentEventId", paymentEvent.id!!)
+            .fetch()
+            .rowsUpdated()
+            .then()
+    }
+
     companion object {
         val INSERT_PAYMENT_EVENT_QUERY = """
             INSERT INTO payment_events (buyer_id, order_name, order_id)
@@ -101,6 +175,31 @@ class R2DBCPaymentRepository(
             WHERE (po.payment_order_status = 'UNKNOWN' OR (po.payment_order_status = 'EXECUTING' AND po.updated_at <= :updatedAt - INTERVAL 3 MINIUTE))
             AND po.failed_count < po.threshold
             LIMIT 10
+        """.trimIndent()
+
+        val SELECT_PAYMENT_EVENT_QUERY = """
+            SELECT pe.id as payment_event_id, po.id as payment_order_id, pe.order_id, pe.order_name, pe.buyer_id, pe.is_payment_done, po.product_id, po.payment_order_status, po.amount, po.ledger_updated, po.wallet_updated
+            FROM payment_events pe
+            INNER JOIN payment_orders po ON pe.order_id = po.order_id
+            WHERE pe.order_id = :orderId
+        """.trimIndent()
+
+        val UPDATE_PAYMENT_ORDER_LEDGER_DONE_QUERY = """
+             UPDATE payment_orders
+             SET ledger_updated = true
+             WHERE order_id = :order_id
+        """.trimIndent()
+
+        val UPDATE_PAYMENT_ORDER_WALLET_DONE_QUERY = """
+             UPDATE payment_orders
+             SET wallet_updated = true
+             WHERE order_id = :order_id
+        """.trimIndent()
+
+        val UPDATE_PAYMENT_EVENT_COMPLETE_QUERY = """
+            UPDATE payment_events
+            SET is_payment_done = true
+            WHERE id = :paymentEventId
         """.trimIndent()
     }
 }

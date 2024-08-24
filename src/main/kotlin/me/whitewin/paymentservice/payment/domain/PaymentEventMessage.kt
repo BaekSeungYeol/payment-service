@@ -2,8 +2,8 @@ package me.whitewin.paymentservice.payment.domain
 
 data class PaymentEventMessage(
     val type: PaymentEventMessageType,
-    val payload: Map<String, Any>,
-    val metadata: Map<String, Any>
+    val payload: Map<String, Any?> = emptyMap(),
+    val metadata: Map<String, Any?> = emptyMap()
 )
 
 enum class PaymentEventMessageType(description: String) {

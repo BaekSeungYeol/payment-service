@@ -13,7 +13,7 @@ class MockProductClient: ProductClient {
             productIds.map {
                 Product(
                     id = it,
-                    amount = BigDecimal(it * 10000),
+                    amount = it * 10000,
                     quantity = 2,
                     name = "test_product_$it",
                     sellerId = 1
